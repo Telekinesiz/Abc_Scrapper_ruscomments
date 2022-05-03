@@ -5,8 +5,8 @@ import json
 import time
 from random import randint
 
-#******************************************
-#Получаем ссылки на разделы
+#*****************************************
+#Recives links to sections
 
 main_url = 'https://abcnews.go.com/'
 headers = {
@@ -28,9 +28,8 @@ for link in (news_links):
 print("Всего разделов:" + str(n))
 sleep(randint(3, 8))
 
-
-#*******************************************
-#Проходим по разделам и получаем ссылки на новости
+#***************************************************
+#interacts through sections and receives links to news 
 links_url = []
 for link in section_url:
 
@@ -52,7 +51,7 @@ for link in section_url:
 print('Ссылки из разделов получены')
 
 #***************************************************************
-#Удаляем из списка ссылки на видео, оставив только новости
+#remove video reports from list of news
 to_be_removed = ['/video/']
 links_url_clear = []
 for j in links_url:
@@ -60,42 +59,42 @@ for j in links_url:
         links_url_clear.append(j)
 
 #*******************************************************************************
-#Открываем каждую отдельную ссылку и парсим  нужную инфу
+#Opens each link and scraps data 
 
-#для сохранения файла
+#for data saving
 all_data = []
 DATA = []
 
 
 k=1
 for article_link in links_url_clear:
-    # Парсим первые 50 статей
+    # scraps first 50 news
     if k > 50:
         break
 
-    # Получаем айдишник
+    # receives IDs
     unique_id = int(time.time())
 
     print('Обрабатываем '+str(k)+'-ую новость из 50 по ссылке: ' + str(article_link))
     k += 1
 
-    #запрос
+    #request
     artiсle = requests.get(article_link, headers=headers).text
     soup = BeautifulSoup(artiсle, 'lxml')
     sleep(randint(3, 8))
 
 
-    #ищет заголовок
+    #search for header
     article_name = soup.find('h1', class_='Article__Headline__Title')
     name = article_name.text
     sleep(randint(3, 8))
 
-    #ищет текст статьи
+    #search for text
     article_text = soup.find('section', class_="Article__Content story")
     text = article_text.text
     sleep(randint(3, 8))
 
-    #поиск ссылок
+    #search for links
     news_links = soup.find('section', class_="Article__Content story").find_all("a")
 
     list_of_links = []
@@ -107,26 +106,26 @@ for article_link in links_url_clear:
     except:
         pass
 
-    # Получение ID новости
+    # receives news ID
     article_name = soup.find('span', class_="disqus-comment-count")
     article_id = article_name['data-disqus-identifier']
 
 
     #**************************************
-    #Открывает страницу, на которой по ID новости можно получить ID беседы на disqus и колличество комментов
+    #Opens page there can be found id for comments on disqus and number of comments 
 
     forum_url = 'https://disqus.com/embed/comments/?base=default&f=abcnewsdotcom&t_i='+str(article_id)
 
     html_text = requests.get(forum_url, headers=headers).text
     soup = BeautifulSoup(html_text, 'lxml')
 
-    # Как и весь дискус, эта страница также отдает не html код, а скрипт, который "чиститься" до json файла, в котором уже ищется нужная информация.
+    #  takes json requets
     mata = soup.find("script", id="disqus-threadData")
     mata = mata.__str__().replace('<script id="disqus-threadData" type="text/json">', '')
     mata = mata.__str__().replace('</script>', '')
     data = json.loads(mata)
 
-    # данные трай/эксепты нужны для редких случаев, когда комментариев на странице либо вообще нет, либо не удается их получить
+    # required to pass situation then news does not have comments
     try:
         discuss_id = data['response']['posts'][0]['thread']
         total_posts = data['cursor']['total']
@@ -134,7 +133,7 @@ for article_link in links_url_clear:
         pass
     try:
         #**********************************************
-        # сбор комментариев, на этих страницах дискус отдает чистый скрипт, который не нужно чистить и можно обрабатывать сразу
+        # scrap comments
         i=0
         comments = []
         iteration = 1
@@ -142,7 +141,7 @@ for article_link in links_url_clear:
         html_text = requests.get(forum_url).text
         data = json.loads(html_text)
 
-        # Дискусс готов отдавать максимум по 100 коментариев, но при этом часто выбивает ошибки, поэтому пришлось грузить по 50, поэтому вычисляем сколько страниц нужно загрузить и сколько коментов записать с последней страницы
+        # disqus can provide data for each 50 comments. This finds how many pages with comments we need to scrap
         number_of_repeats = total_posts // 50
         last_iteration = total_posts - number_of_repeats * 50
 
@@ -156,7 +155,7 @@ for article_link in links_url_clear:
 
         print('Сохраняем ' + str(last_iteration) + ' комментариев')
 
-        # если коментов больше 50 парсит по 50 комментов за раз
+        # scraps 50 comments
         if number_of_repeats > 0:
 
             for iter in range(number_of_repeats):
@@ -172,7 +171,7 @@ for article_link in links_url_clear:
                 sleep(randint(3, 8))
                 print(str((iteration + 1)) + '-ай пак из 50  комментариев сохранен')
 
-        #не уверен, что нужно удалять технические символы, поэтому оставляю их на всякий случай, убирать их планировал строчкой ниже
+        #can be used in order to clear data
         #comments = comments.__str__().replace('\n', '').replace('\"', '').replace('</i>', '').replace('<i>', '').replace('\\n',' ').replace('\\','')
     except:
         print('Не удалось получить часть комментариев')
@@ -182,7 +181,7 @@ for article_link in links_url_clear:
 
 
     #*********************************************************
-    #сохранение в json
+    #saving to json
 
 
     DATA.append(
@@ -199,4 +198,4 @@ for article_link in links_url_clear:
 with open('ABC_NEWS_SCR.json',"w",encoding='utf-8') as file:
     json.dump(DATA, file, indent=4, ensure_ascii=False)
 
-print("готово")
+print("Done")
